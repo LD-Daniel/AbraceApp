@@ -1,235 +1,266 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
- View,
- Text,
- StyleSheet,
- FlatList,
- TouchableOpacity,
- TextInput,
- ScrollView,
- SafeAreaView,
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  TextInput,
+  SafeAreaView,
 } from 'react-native';
 import styles from './SupervisorStyles';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { useNavigation } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 
 export default function SupervisorDashboard() {
- const [searchText, setSearchText] = useState('');
- const [filterType, setFilterType] = useState('all');
+  const [searchText, setSearchText] = useState('');
+  const [filterType, setFilterType] = useState('all');
+  const [viagens, setViagens] = useState([]);
 
- // Dados para visualização
- const viagensMock = [
- {
-  id: '1',
-  nome: 'João Silva',
-  placa: 'ABC-1234',
-  tipoRota: 'rota1',
-  kmSaida: '1500',
-  kmChegada: '1650',
-  horaSaida: '07:00',
-  horaChegada: '17:30',
-  paradas: '08:00 - 50km, 10:30 - 120km',
-  dataRegistro: '15/12/2023'
- },
- {
-  id: '2',
-  nome: 'Maria Santos',
-  placa: 'DEF-5678',
-  tipoRota: 'rota2',
-  kmSaida: '2000',
-  kmChegada: '2200',
-  horaSaida: '06:30',
-  horaChegada: '18:00',
-  paradas: 'Nenhuma',
-  dataRegistro: '15/12/2023'
- },
- {
-  id: '3',
-  nome: 'Carlos Oliveira',
-  placa: 'GHI-9012',
-  tipoRota: 'rota2',
-  kmSaida: '1800',
-  kmChegada: '1950',
-  horaSaida: '08:00',
-  horaChegada: '16:45',
-  paradas: '09:30 - 75km',
-  dataRegistro: '14/12/2023'
- },
- {
-  id: '4',
-  nome: 'Carlos Oliveira',
-  placa: 'GHI-9012',
-  tipoRota: 'rota3',
-  kmSaida: '1800',
-  kmChegada: '1950',
-  horaSaida: '08:00',
-  horaChegada: '16:45',
-  paradas: '09:30 - 75km',
-  dataRegistro: '14/12/2023'
- }
- ];
+  const navigation = useNavigation();
 
- const stats = {
- total: viagensMock.length,
- rota1Count: viagensMock.filter(v => v.tipoRota === 'rota1').length,
- rota2Count: viagensMock.filter(v => v.tipoRota === 'rota2').length,
- rota3Count: viagensMock.filter(v => v.tipoRota === 'rota3').length,
- };
+  const handleLogout = async () => {
+  try {
+    await AsyncStorage.removeItem('usuarioLogado'); // ou outro nome de chave
+    navigation.replace('Login'); // substitui a tela atual pela de login
+  } catch (error) {
+    console.error('Erro ao deslogar:', error);
+  }
+};
 
- const renderItem = ({ item }) => (
- <View style={styles.card}>
-  <View style={styles.cardHeader}>
-  <Text style={styles.cardTitle}>{item.nome}</Text>
-  <TouchableOpacity>
-    <MaterialIcons name="delete" size={24} color="#e81648" />  
-  </TouchableOpacity>
-  </View>
+  useEffect(() => {
+    fetch('http://192.168.0.14:3001/formularios')
+      .then((response) => response.json())
+      .then((data) => {
+        const viagensFormatadas = data.map(item => ({
+          ...item,
+          paradas: item.paradas || '', // Agora trata como texto comum
+          id: item.id.toString(),
+          tipoRota:
+            item.rota_id === 'rota1' || item.rota_id === 1 || item.rota_id === '1'
+            ? 'rota1'
+            : item.rota_id === 'rota2' || item.rota_id === 2 || item.rota_id === '2'
+            ? 'rota2'
+            : 'rota3',
+          nome: item.nome,
+          placa: item.placa,
+          kmSaida: item.km_saida,
+          kmChegada: item.km_chegada,
+          horaSaida: item.hr_saida,
+          horaChegada: item.hr_chegada,
+          dataRegistro: item.data_preenchimento,
+        }));
+        setViagens(viagensFormatadas);
+      })
+      .catch((error) => {
+        console.error('Erro ao buscar viagens:', error);
+      });
+  }, []);
 
-  <View style={styles.cardContent}>
-  <View style={styles.infoRow}>
-   <View style={styles.infoItem}>
-   <Text style={styles.infoLabel}>Placa:</Text>
-   <Text style={styles.infoValue}>{item.placa}</Text>
-   </View>
-   <View style={styles.infoItem}>
-   <Text style={styles.infoLabel}>Rota:</Text>
-   <Text style={styles.infoValue}>
-    {item.tipoRota === 'rota1' ? 'Rota 1' : 'Rota 2'}
-   </Text>
-   </View>
-  </View>
+  const viagensFiltradas = viagens.filter((v) => {
+    if (filterType !== 'all' && v.tipoRota !== filterType) return false;
+    const texto = searchText.toLowerCase();
+    return (
+      v.nome.toLowerCase().includes(texto) ||
+      v.placa.toLowerCase().includes(texto)
+    );
+  });
 
-  <View style={styles.infoRow}>
-   <View style={styles.infoItem}>
-   <Text style={styles.infoLabel}>KM:</Text>
-   <Text style={styles.infoValue}>{item.kmSaida} → {item.kmChegada}</Text>
-   </View>
-   <View style={styles.infoItem}>
-   <Text style={styles.infoLabel}>Horário:</Text>
-   <Text style={styles.infoValue}>{item.horaSaida} → {item.horaChegada}</Text>
-   </View>
-  </View>
+  const stats = {
+    total: viagens.length,
+    rota1Count: viagens.filter((v) => v.tipoRota === 'rota1').length,
+    rota2Count: viagens.filter((v) => v.tipoRota === 'rota2').length,
+    rota3Count: viagens.filter((v) => v.tipoRota === 'rota3').length,
+  };
 
-  <View style={styles.paradasContainer}>
-   <Text style={styles.infoLabel}>Paradas:</Text>
-   <Text style={styles.paradasText}>{item.paradas}</Text>
-  </View>
+  const renderItem = ({ item }) => (
+    <View style={styles.card}>
+      <View style={styles.cardHeader}>
+        <Text style={styles.cardTitle}>{item.nome}</Text>
+      </View>
 
-  <View style={styles.dataContainer}>
-   <Text style={styles.infoLabel}>Data:</Text>
-   <Text style={styles.infoValue}>{item.dataRegistro}</Text>
-  </View>
-  </View>
- </View>
- );
+      <View style={styles.cardContent}>
+        <View style={styles.infoRow}>
+          <View style={styles.infoItem}>
+            <Text style={styles.infoLabel}>Placa:</Text>
+            <Text style={styles.infoValue}>{item.placa}</Text>
+          </View>
+          <View style={styles.infoItem}>
+            <Text style={styles.infoLabel}>Rota:</Text>
+            <Text style={styles.infoValue}>
+              {item.tipoRota === 'rota1'
+                ? 'Rota 1'
+                : item.tipoRota === 'rota2'
+                ? 'Rota 2'
+                : 'Rota 3'}
+            </Text>
+          </View>
+        </View>
 
- return (
- <SafeAreaView style={styles.container}>
+        <View style={styles.infoRow}>
+          <View style={styles.infoItem}>
+            <Text style={styles.infoLabel}>KM:</Text>
+            <Text style={styles.infoValue}>
+              {item.kmSaida} → {item.kmChegada}
+            </Text>
+          </View>
+          <View style={styles.infoItem}>
+            <Text style={styles.infoLabel}>Horário:</Text>
+            <Text style={styles.infoValue}>
+              {item.horaSaida} → {item.horaChegada}
+            </Text>
+          </View>
+        </View>
 
-  {/* Header */}
+        <View style={styles.paradasContainer}>
+          <Text style={styles.infoLabel}>Paradas:</Text>
+          <Text style={styles.paradasText}>
+            {item.paradas ? item.paradas : 'Sem paradas'}
+          </Text>
+        </View>
 
-  <View style={styles.header}>
-  <Text style={styles.headerTitle}>Painel do Supervisor</Text>
+        <View style={styles.dataContainer}>
+          <Text style={styles.infoLabel}>Data:</Text>
+          <Text style={styles.infoValue}>{item.dataRegistro}</Text>
+        </View>
+      </View>
+    </View>
+  );
 
-  <TouchableOpacity>
-    <MaterialIcons name="logout" size={30} color="black" paddingTop={30} />
-  </TouchableOpacity>
-  </View>
+  return (
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Painel do Supervisor</Text>
+        <TouchableOpacity onPress={handleLogout}>
+          <MaterialIcons
+            name="logout"
+            size={30}
+            color="black"
+            style={{ paddingTop: 30 }}
+          />
+        </TouchableOpacity>
+      </View>
 
-  {/* Estatísticas */}
+      <View style={styles.statsContainer}>
+        <View style={styles.statCard}>
+          <Text style={styles.statValue}>{stats.total}</Text>
+          <Text style={styles.statLabel}>Total</Text>
+        </View>
+        <View style={styles.statCard}>
+          <Text style={styles.statValue}>{stats.rota1Count}</Text>
+          <Text style={styles.statLabel}>Rota 1</Text>
+        </View>
+        <View style={styles.statCard}>
+          <Text style={styles.statValue}>{stats.rota2Count}</Text>
+          <Text style={styles.statLabel}>Rota 2</Text>
+        </View>
+        <View style={styles.statCard}>
+          <Text style={styles.statValue}>{stats.rota3Count}</Text>
+          <Text style={styles.statLabel}>Rota 3</Text>
+        </View>
+      </View>
 
-  <View style={styles.statsContainer}>
-  <View style={styles.statCard}>
-   <Text style={styles.statValue}>{stats.total}</Text>
-   <Text style={styles.statLabel}>Total</Text>
-  </View>
-  <View style={styles.statCard}>
-   <Text style={styles.statValue}>{stats.rota1Count}</Text>
-   <Text style={styles.statLabel}>Rota 1</Text>
-  </View>
-  <View style={styles.statCard}>
-   <Text style={styles.statValue}>{stats.rota2Count}</Text>
-   <Text style={styles.statLabel}>Rota 2</Text>
-  </View>
-  <View style={styles.statCard}>
-   <Text style={styles.statValue}>{stats.rota3Count}</Text>
-   <Text style={styles.statLabel}>Rota 3</Text>
-  </View>
-  </View>
+      <View style={styles.searchContainer}>
+        <View style={styles.searchInputContainer}>
+          <MaterialIcons
+            name="search"
+            size={24}
+            color="black"
+            style={{ paddingRight: 8 }}
+          />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Buscar por motorista ou placa"
+            value={searchText}
+            onChangeText={setSearchText}
+          />
+          {searchText ? (
+            <TouchableOpacity onPress={() => setSearchText('')}>
+              <Text style={styles.clearIcon}>❌</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
+      </View>
 
-  {/* Busca */}
-  <View style={styles.searchContainer}>
-  <View style={styles.searchInputContainer}>
-    <MaterialIcons name="search" size={24} color="black" paddingRi />   
-  <TextInput
-   style={styles.searchInput}
-   placeholder="Buscar por motorista ou placa"
-   value={searchText}
-   onChangeText={setSearchText}
-   />
-   {searchText ? (
-   <TouchableOpacity onPress={() => setSearchText('')}>
-    <Text style={styles.clearIcon}>❌</Text>
-   </TouchableOpacity>
-   ) : null}
-  </View>
-  </View>
+      <View style={styles.filterContainer}>
+        <TouchableOpacity
+          style={[
+            styles.filterButton,
+            filterType === 'all' && styles.filterButtonActive,
+          ]}
+          onPress={() => setFilterType('all')}
+        >
+          <Text
+            style={[
+              styles.filterButtonText,
+              filterType === 'all' && styles.filterButtonTextActive,
+            ]}
+          >
+            Todas
+          </Text>
+        </TouchableOpacity>
 
-  {/* Filtros */}
-  <View style={styles.filterContainer}>
-  <TouchableOpacity
-   style={[
-   styles.filterButton,
-   filterType === 'all' && styles.filterButtonActive
-   ]}
-   onPress={() => setFilterType('all')}
-  >
-   <Text style={[
-   styles.filterButtonText,
-   filterType === 'all' && styles.filterButtonTextActive
-   ]}>
-   Todas
-   </Text>
-  </TouchableOpacity>
-  
-  <TouchableOpacity
-   style={[
-   styles.filterButton,
-   filterType === 'rota1' && styles.filterButtonActive
-   ]}
-   onPress={() => setFilterType('rota1')}
-  >
-   <Text style={[
-   styles.filterButtonText,
-   filterType === 'rota1' && styles.filterButtonTextActive
-   ]}>
-   Rota 1
-   </Text>
-  </TouchableOpacity>
-  
-  <TouchableOpacity
-   style={[
-   styles.filterButton,
-   filterType === 'rota2' && styles.filterButtonActive
-   ]}
-   onPress={() => setFilterType('rota2')}
-  >
-   <Text style={[
-   styles.filterButtonText,
-   filterType === 'rota2' && styles.filterButtonTextActive
-   ]}>
-   Rota 2
-   </Text>
-  </TouchableOpacity>
-  </View>
+        <TouchableOpacity
+          style={[
+            styles.filterButton,
+            filterType === 'rota1' && styles.filterButtonActive,
+          ]}
+          onPress={() => setFilterType('rota1')}
+        >
+          <Text
+            style={[
+              styles.filterButtonText,
+              filterType === 'rota1' && styles.filterButtonTextActive,
+            ]}
+          >
+            Rota 1
+          </Text>
+        </TouchableOpacity>
 
-  {/* Lista de Viagens */}
-  <FlatList
-  data={viagensMock}
-  renderItem={renderItem}
-  keyExtractor={(item) => item.id}
-  contentContainerStyle={styles.listContainer}
-  showsVerticalScrollIndicator={false}
-  />
- </SafeAreaView>
- );
+        <TouchableOpacity
+          style={[
+            styles.filterButton,
+            filterType === 'rota2' && styles.filterButtonActive,
+          ]}
+          onPress={() => setFilterType('rota2')}
+        >
+          <Text
+            style={[
+              styles.filterButtonText,
+              filterType === 'rota2' && styles.filterButtonTextActive,
+            ]}
+          >
+            Rota 2
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.filterButton,
+            filterType === 'rota3' && styles.filterButtonActive,
+          ]}
+          onPress={() => setFilterType('rota3')}
+        >
+          <Text
+            style={[
+              styles.filterButtonText,
+              filterType === 'rota3' && styles.filterButtonTextActive,
+            ]}
+          >
+            Rota 3
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      <FlatList
+        data={viagensFiltradas}
+        renderItem={renderItem}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.listContainer}
+        showsVerticalScrollIndicator={false}
+      />
+    </SafeAreaView>
+  );
 }

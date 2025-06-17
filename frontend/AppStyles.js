@@ -16,13 +16,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     elevation: 5
   },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#ea580c',
-    textAlign: 'center',
-    marginBottom: 8
-  },
   subtitle: {
     fontSize: 16,
     fontWeight: '600',

@@ -1,283 +1,233 @@
-import React, { useState, useEffect } from 'react';
+// 📦 Importações principais
+import React, {useState,} from 'react';
 import {
- View,
- Text,
- TextInput,
- Button,
- StyleSheet,
- Alert,
- ScrollView,
- TouchableOpacity,
- KeyboardAvoidingView,
- Platform,
- Keyboard,
- TouchableWithoutFeedback,
+  View, Text, TextInput, Alert,
+  ScrollView, TouchableOpacity, KeyboardAvoidingView,
+  Platform, Keyboard, TouchableWithoutFeedback
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import styles from './FormularioStyles';
+import styles from './FormularioStyles'; // Arquivo externo de estilos
 
-// Componente RadioButton para seleção de opções
-const RadioButton = ({ options, selectedOption, onSelect }) => {
- return (
+// 🎛️ Componente de Botões de Rota (estilo rádio)
+const RadioButton = ({ options, selectedOption, onSelect }) => (
   <View style={styles.radioGroup}>
-   {options.map((option) => (
-    <TouchableOpacity
-     key={option.value}
-     style={styles.radioOption}
-     onPress={() => onSelect(option.value)}
-    >
-     <View style={styles.radioOuter}>
-      {selectedOption === option.value && <View style={styles.radioInner} />}
-     </View>
-     <Text style={styles.radioLabel}>{option.label}</Text>
-    </TouchableOpacity>
-   ))}
+    {options.map((option) => (
+      <TouchableOpacity
+        key={option.value}
+        style={styles.radioOption}
+        onPress={() => onSelect(option.value)}
+      >
+        <View style={styles.radioOuter}>
+          {selectedOption === option.value && <View style={styles.radioInner} />}
+        </View>
+        <Text style={styles.radioLabel}>{option.label}</Text>
+      </TouchableOpacity>
+    ))}
   </View>
- );
-};
+);
 
-// Função para validar e limitar horário para max 23:59
+// 🕐 Função para validar horários inseridos
 const validarHorario = (horario) => {
   const [horaStr = '0', minStr = '0'] = horario.split(':');
   let hora = parseInt(horaStr, 10);
   let min = parseInt(minStr, 10);
-
   if (isNaN(hora)) hora = 0;
   if (isNaN(min)) min = 0;
-
   if (hora > 23) hora = 23;
   if (min > 59) min = 59;
-
   return `${hora.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`;
 };
 
-export default function App() {
- const [nomeInput, setNomeInput] = useState('');
- const [placaInput, setPlacaInput] = useState('');
- const [tipoRota, setTipoRota] = useState(null);
- const [paradasInput, setParadasInput] = useState('');
- const [kmSaidaInput, setKmSaidaInput] = useState('');
- const [kmChegadaInput, setKmChegadaInput] = useState('');
- const [horaSaidaInput, setHoraSaidaInput] = useState('');
- const [horaChegadaInput, setHoraChegadaInput] = useState('');
- const [storeData, setStoredData] = useState([]);
- const [showSavedData, setShowSavedData] = useState(false);
+// 🧾 Tela principal do formulário
+export default function App({ navigation }) {
+  // 🧠 Estados dos campos do formulário
+  const [nomeInput, setNomeInput] = useState('');
+  const [placaInput, setPlacaInput] = useState('');
+  const [tipoRota, setTipoRota] = useState(null);
+  const [paradasInput, setParadasInput] = useState('');
+  const [kmSaidaInput, setKmSaidaInput] = useState('');
+  const [kmChegadaInput, setKmChegadaInput] = useState('');
+  const [horaSaidaInput, setHoraSaidaInput] = useState('');
+  const [horaChegadaInput, setHoraChegadaInput] = useState('');
 
- const rotaOptions = [
-  { label: 'Rota HCB', value: 'rota1' },
-  { label: 'Rota Sirio Libanes', value: 'rota2' },
-  { label: 'Rota Rodoviaria Interistadual', value: 'rota3' },
- ];
+  // 🗺️ Opções de rotas disponíveis
+  const rotaOptions = [
+    { label: 'Rota HCB', value: 1 },
+    { label: 'Rota Sirio Libanes', value: 2 },
+    { label: 'Rota Rodoviaria Interistadual', value: 3 },
+  ];
 
- const formatarHorario = (texto) => {
-    const numeros = texto.replace(/\D/g, '').slice(0, 4); // Remove não números e limita a 4 dígitos
+  // 🧹 Função para formatar campo de horário automaticamente
+  const formatarHorario = (texto) => {
+    const numeros = texto.replace(/\D/g, '').slice(0, 4);
     if (numeros.length <= 2) return numeros;
     return `${numeros.slice(0, 2)}:${numeros.slice(2)}`;
   };
 
- useEffect(() => {
-  loadData();
- }, []);
+  // 🚀 Função para enviar os dados para o backend
+  const saveData = async () => {
+    // Validação básica dos campos obrigatórios
+    if (!nomeInput.trim() || !placaInput.trim() || !tipoRota) {
+      Alert.alert('Erro', 'Preencha pelo menos Nome, Placa e Tipo de Rota.');
+      return;
+    }
 
- const saveData = async () => {
-  if (!nomeInput.trim() || !placaInput.trim() || !tipoRota) {
-   Alert.alert('Erro', 'Preencha pelo menos Nome, Placa e Tipo de Rota.');
-   return;
-  }
+    // Montar os dados a serem enviados conforme o backend espera
+    const dadosParaEnviar = {
+      usuario_id: 1, // Exemplo fixo, adapte conforme seu sistema de usuários
+      rota_id: tipoRota, // A rota selecionada
+      nome: nomeInput.trim(),
+      placa: placaInput.trim(),
+      km_saida: kmSaidaInput.trim(),
+      km_chegada: kmChegadaInput.trim(),
+      hr_saida: horaSaidaInput.trim(),
+      hr_chegada: horaChegadaInput.trim(),
+      data_preenchimento: new Date().toISOString().slice(0,10), // Data atual no formato YYYY-MM-DD
+      paradas: paradasInput.trim(), // Aqui você pode adaptar para mandar as paradas corretamente, por enquanto vazio
+    };
 
-  const newEntry = {
-   nome: nomeInput.trim(),
-   placa: placaInput.trim(),
-   tipoRota,
-   paradas: paradasInput.trim(),
-   kmSaida: kmSaidaInput.trim(),
-   kmChegada: kmChegadaInput.trim(),
-   horaSaida: horaSaidaInput.trim(),
-   horaChegada: horaChegadaInput.trim(),
-   id: Date.now().toString(),
+    try {
+      // Chamada para seu backend, troque a URL para a sua
+        console.log('Enviando dados para o backend...');
+      const response = await fetch('http://192.168.0.14:3001/formularios', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(dadosParaEnviar),
+      });
+
+      const json = await response.json();
+
+      if (response.ok) {
+        Alert.alert('Sucesso', 'Dados enviados com sucesso!');
+        clearInputs(); // Limpa o formulário após envio
+        if (navigation?.goBack) navigation.goBack();
+      } else {
+        Alert.alert('Erro', json.erro || 'Erro ao salvar dados.');
+      }
+    } catch (error) {
+      console.error('Erro ao enviar dados:', error);
+      Alert.alert('Erro', 'Não foi possível conectar ao servidor.');
+    }
   };
 
-  const updatedData = [...storeData, newEntry];
+  // 🧽 Limpa os campos do formulário
+  const clearInputs = () => {
+    setNomeInput('');
+    setPlacaInput('');
+    setTipoRota(null);
+    setParadasInput('');
+    setKmSaidaInput('');
+    setKmChegadaInput('');
+    setHoraSaidaInput('');
+    setHoraChegadaInput('');
+  };
 
-  try {
-   await AsyncStorage.setItem('viagensData', JSON.stringify(updatedData));
-   setStoredData(updatedData);
-   clearInputs();
-   Alert.alert('Sucesso', 'Dados salvos com sucesso!');
-  } catch (error) {
-   console.error('Erro ao salvar os dados', error);
-   Alert.alert('Erro', 'Falha ao salvar os dados.');
-  }
- };
+  // ⌨️ Validação de horário ao pressionar "enter"
+  const onSubmitHoraSaida = () => {
+    setHoraSaidaInput((old) => validarHorario(old));
+  };
+  const onSubmitHoraChegada = () => {
+    setHoraChegadaInput((old) => validarHorario(old));
+  };
 
- const loadData = async () => {
-  try {
-   const data = await AsyncStorage.getItem('viagensData');
-   if (data) {
-    setStoredData(JSON.parse(data));
-   }
-  } catch (error) {
-   console.error('Erro ao carregar os dados', error);
-  }
- };
+  // 🧾 Interface visual do formulário
+  return (
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={0}
+    >
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.title}>Registro de Viagem</Text>
 
- const deleteData = async (id) => {
-  const filteredData = storeData.filter(item => item.id !== id);
-  try {
-   await AsyncStorage.setItem('viagensData', JSON.stringify(filteredData));
-   setStoredData(filteredData);
-   Alert.alert('Sucesso', 'Registro excluído!');
-  } catch (error) {
-   console.error('Erro ao excluir os dados', error);
-   Alert.alert('Erro', 'Falha ao excluir os dados.');
-  }
- };
+          <ScrollView style={styles.formContainer} keyboardShouldPersistTaps="handled">
+            {/* Nome */}
+            <Text style={styles.subtitle}>Nome do Motorista:</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Nome completo"
+              value={nomeInput}
+              onChangeText={setNomeInput}
+            />
 
- const clearInputs = () => {
-  setNomeInput('');
-  setPlacaInput('');
-  setTipoRota(null);
-  setParadasInput('');
-  setKmSaidaInput('');
-  setKmChegadaInput('');
-  setHoraSaidaInput('');
-  setHoraChegadaInput('');
- };
+            {/* Placa */}
+            <Text style={styles.subtitle}>Placa do Veículo:</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="ABC-1234"
+              value={placaInput}
+              onChangeText={setPlacaInput}
+            />
 
- // Funções para validar horário ao apertar Enter/OK
- const onSubmitHoraSaida = () => {
-  setHoraSaidaInput((old) => validarHorario(old));
- };
+            {/* Rota */}
+            <Text style={styles.subtitle}>Tipo de Rota:</Text>
+            <RadioButton
+              options={rotaOptions}
+              selectedOption={tipoRota}
+              onSelect={setTipoRota}
+            />
 
- const onSubmitHoraChegada = () => {
-  setHoraChegadaInput((old) => validarHorario(old));
- };
+            {/* Paradas */}
+            <Text style={styles.subtitle}>Paradas (horário e KM):</Text>
+            <TextInput
+              style={[styles.input, styles.multilineInput]}
+              placeholder="Ex: 08:00 - 50km, 10:30 - 120km"
+              value={paradasInput}
+              onChangeText={setParadasInput}
+              multiline
+            />
 
- return (
-  <KeyboardAvoidingView
-   style={styles.container}
-   behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-   keyboardVerticalOffset={0}
-  >
-   <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-    <View style={{ flex: 1 }}>
-     <Text style={styles.title}>Registro de Viagem</Text>
+            {/* Quilometragem */}
+            <Text style={styles.subtitle}>KM de Saída:</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Ex: 1500"
+              keyboardType="numeric"
+              value={kmSaidaInput}
+              onChangeText={setKmSaidaInput}
+            />
 
-     <ScrollView style={styles.formContainer} keyboardShouldPersistTaps="handled">
-      <Text style={styles.subtitle}>Nome do Motorista:</Text>
-      <TextInput
-       style={styles.input}
-       placeholder="Nome completo"
-       value={nomeInput}
-       onChangeText={setNomeInput}
-      />
+            <Text style={styles.subtitle}>KM de Chegada:</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Ex: 1650"
+              keyboardType="numeric"
+              value={kmChegadaInput}
+              onChangeText={setKmChegadaInput}
+            />
 
-      <Text style={styles.subtitle}>Placa do Veículo:</Text>
-      <TextInput
-       style={styles.input}
-       placeholder="ABC-1234"
-       value={placaInput}
-       onChangeText={setPlacaInput}
-      />
+            {/* Horários */}
+            <Text style={styles.subtitle}>Horário de Saída:</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Ex: 07:00"
+              keyboardType="numeric"
+              value={horaSaidaInput}
+              onChangeText={(text) => setHoraSaidaInput(formatarHorario(text))}
+              onSubmitEditing={onSubmitHoraSaida}
+              returnKeyType="done"
+            />
 
-      <Text style={styles.subtitle}>Tipo de Rota:</Text>
-      <RadioButton
-       options={rotaOptions}
-       selectedOption={tipoRota}
-       onSelect={setTipoRota}
-      />
+            <Text style={styles.subtitle}>Horário de Chegada:</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Ex: 17:30"
+              keyboardType="numeric"
+              value={horaChegadaInput}
+              onChangeText={(text) => setHoraChegadaInput(formatarHorario(text))}
+              onSubmitEditing={onSubmitHoraChegada}
+              returnKeyType="done"
+            />
 
-      <Text style={styles.subtitle}>Paradas (horário e KM):</Text>
-      <TextInput
-       style={[styles.input, styles.multilineInput]}
-       placeholder="Ex: 08:00 - 50km, 10:30 - 120km"
-       value={paradasInput}
-       onChangeText={setParadasInput}
-       multiline
-      />
-
-      <Text style={styles.subtitle}>KM de Saída:</Text>
-      <TextInput
-       style={styles.input}
-       placeholder="Ex: 1500"
-       keyboardType="numeric"
-       value={kmSaidaInput}
-       onChangeText={setKmSaidaInput}
-      />
-
-      <Text style={styles.subtitle}>KM de Chegada:</Text>
-      <TextInput
-       style={styles.input}
-       placeholder="Ex: 1650"
-       keyboardType="numeric"
-       value={kmChegadaInput}
-       onChangeText={setKmChegadaInput}
-      />
-
-      <Text style={styles.subtitle}>Horário de Saída:</Text>
-      <TextInput
-       style={styles.input}
-       placeholder="Ex: 07:00"
-       keyboardType='numeric'
-       value={horaSaidaInput}
-       onChangeText={(text) => setHoraSaidaInput(formatarHorario(text))}
-       onSubmitEditing={onSubmitHoraSaida}
-       returnKeyType="done"
-      />
-
-      <Text style={styles.subtitle}>Horário de Chegada:</Text>
-      <TextInput
-       style={styles.input}
-       placeholder="Ex: 17:30"
-       keyboardType='numeric'
-       value={horaChegadaInput}
-       onChangeText={(text) => setHoraChegadaInput(formatarHorario(text))}
-       onSubmitEditing={onSubmitHoraChegada}
-       returnKeyType="done"
-      />
-
-      <TouchableOpacity style={styles.saveButton} onPress={saveData}>
-        <Text style={styles.saveButtonText}>Salvar Dados</Text>
-      </TouchableOpacity>
-
-      <View style={styles.buttonContainer}>
-       <Button
-        title={showSavedData ? "Ocultar Registros" : "Mostrar Registros"}
-        onPress={() => setShowSavedData(!showSavedData)}
-       />
-      </View>
-     </ScrollView>
-
-     {showSavedData && (
-      <View style={styles.savedDataContainer}>
-       <Text style={styles.sectionTitle}>Registros Salvos:</Text>
-       {storeData.length === 0 ? (
-        <Text style={styles.noDataText}>Nenhum registro salvo ainda.</Text>
-       ) : (
-        <ScrollView>
-         {storeData.map((item) => (
-          <View key={item.id} style={styles.dataItem}>
-           <Text style={styles.dataText}>Motorista: {item.nome}</Text>
-           <Text style={styles.dataText}>Placa: {item.placa}</Text>
-           <Text style={styles.dataText}>Tipo de Rota: {item.tipoRota === 'rota1' ? 'Rota 1' : 'Rota 2'}</Text>
-           <Text style={styles.dataText}>KM: {item.kmSaida} → {item.kmChegada}</Text>
-           <Text style={styles.dataText}>Horário: {item.horaSaida} → {item.horaChegada}</Text>
-           <Text style={styles.dataText}>Paradas: {item.paradas || 'Nenhuma'}</Text>
-
-           <TouchableOpacity
-            style={styles.deleteButton}
-            onPress={() => deleteData(item.id)}
-           >
-            <Text style={styles.deleteButtonText}>Excluir</Text>
-           </TouchableOpacity>
-          </View>
-         ))}
-        </ScrollView>
-       )}
-      </View>
-     )}
-    </View>
-   </TouchableWithoutFeedback>
-  </KeyboardAvoidingView>
- );
+            {/* Botão de salvar */}
+            <TouchableOpacity style={styles.saveButton} onPress={saveData}>
+              <Text style={styles.saveButtonText}>Salvar Dados</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
+      </TouchableWithoutFeedback>
+    </KeyboardAvoidingView>
+  );
 }

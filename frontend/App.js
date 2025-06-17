@@ -8,12 +8,13 @@ import {
   TextInput,
   TouchableOpacity,
   Alert,
-  StyleSheet,
 } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 
+
 // import de estilos e telas
 import FormularioScreen from './FormularioScreen';
+import CaminhoneiroHome from './CaminhoneiroHome';
 import SupervisorView from './SupervisorView';
 import styles from './AppStyles';
 
@@ -25,30 +26,38 @@ function LoginScreen({ navigation }) {
   const [senha, setSenha] = useState('');
   const [erro, setErro] = useState('');
 
-  //Funcionarios Cadastrados
-  const funcionarios = [
-    { email: 'agnaldo@abrace.org', senha: 'abrace123' },
-    { email: 'ricardo@abrace.org', senha: 'abrace123' },
-    { email: 'joao@abrace.org', senha: 'abrace123' }
-  ];
-
-  // Supervisor cadastrado
-  const supervisor = {email: 'supervisor@abrace.org', senha: 'adm321' };
-
   // Função de Login com Redirecionamento Condicional
-  const handleSubmit = () =>{
-  if (email === supervisor.email && senha === supervisor.senha) {
-    setErro ('');
-    navigation.navigate('Supervisor');
-  }
-  else if (funcionarios.some(user => user.email === email && user.senha === senha )){
-    setErro ('');
-    navigation.navigate('Formulario');
-  }
-  else {
-    setErro('Usuário ou Senha incorretos.');
-  }
-  }
+  const handleSubmit = async () => {
+    if (!email || !senha) {
+      setErro('Preencha o email e a senha.');
+      return;
+    }
+
+    try {
+      const response = await fetch('http://192.168.0.14:3001/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, senha })
+      });
+
+      const json = await response.json();
+
+      if (response.ok) {
+        setErro('');
+        if (json.perfil === 'supervisor') {
+          navigation.navigate('Supervisor');
+        } else {
+          navigation.navigate('CaminhoneiroHome');
+        }
+      } else {
+        setErro(json.erro || 'Erro ao fazer login.');
+      }
+    } catch (error) {
+      console.error('Erro na requisição de login:', error);
+      setErro('Erro de conexão com o servidor.');
+    }
+  };
+
   const esqueciSenha = () => Alert.alert('Recuperação de senha', 'Redirecionando...');
   const naoCadastrado = () => Alert.alert('Cadastro', 'Redirecionando...');
 
@@ -109,6 +118,7 @@ export default function App() {
     <NavigationContainer>
       <Stack.Navigator initialRouteName="Login" screenOptions={{ headerShown: false }}>
         <Stack.Screen name="Login" component={LoginScreen} />
+        <Stack.Screen name="CaminhoneiroHome" component={CaminhoneiroHome} />
         <Stack.Screen name="Formulario" component={FormularioScreen} />
         <Stack.Screen name="Supervisor" component={SupervisorView} />
       </Stack.Navigator>
