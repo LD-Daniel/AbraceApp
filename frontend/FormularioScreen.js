@@ -88,7 +88,7 @@ export default function App({ navigation }) {
     try {
       // Chamada para seu backend, troque a URL para a sua
         console.log('Enviando dados para o backend...');
-      const response = await fetch('http://192.168.0.14:3001/formularios', {
+      const response = await fetch('LOCALHOST/formularios', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
