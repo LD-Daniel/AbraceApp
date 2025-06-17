@@ -31,7 +31,7 @@ export default function SupervisorDashboard() {
 };
 
   useEffect(() => {
-    fetch('http://192.168.0.14:3001/formularios')
+    fetch('http:LOCALHOST/formularios')
       .then((response) => response.json())
       .then((data) => {
         const viagensFormatadas = data.map(item => ({
