@@ -34,7 +34,7 @@ function LoginScreen({ navigation }) {
     }
 
     try {
-      const response = await fetch('http://192.168.0.14:3001/login', {
+      const response = await fetch('LOCALHOST/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, senha })
